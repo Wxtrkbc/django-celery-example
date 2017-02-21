@@ -13,11 +13,8 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 import os
 import djcelery
 
-djcelery.setup_loader()
-
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
@@ -30,7 +27,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -42,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'app',
     'djcelery',
+    'timer',
 ]
 
 MIDDLEWARE = [
@@ -74,7 +71,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'mycelery.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/1.10/ref/settings/#databases
 
@@ -84,7 +80,6 @@ DATABASES = {
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/1.10/ref/settings/#auth-password-validators
@@ -104,7 +99,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/1.10/topics/i18n/
 
@@ -118,7 +112,6 @@ USE_L10N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.10/howto/static-files/
 
@@ -126,3 +119,42 @@ STATIC_URL = '/static/'
 
 BROKEN_URL = "amqp://localhost"
 CELERY_RESULT_BACKEND = "amqp://localhost"
+
+# celery
+djcelery.setup_loader()
+CELERY_IMPORTS = ('timer.celery_.tasks',)
+CELERY_TIMEZONE = TIME_ZONE
+BROKER_URL = 'amqp://localhost'
+CELERYBEAT_SCHEDULER = 'djcelery.schedulers.DatabaseScheduler'
+CELERY_RESULT_BACKEND = 'djcelery.backends.database:DatabaseBackend'
+CELERY_TASK_RESULT_EXPIRES = 1200
+CELERYD_CONCURRENCY = 10
+CELERYD_PREFETCH_MULTIPLIER = 4
+CELERYD_MAX_TASKS_PER_CHILD = 200
+CELERY_DEFAULT_QUEUE = "default_queue"  # 默认的队列，如果一个消息不符合其他的队列就会放在默认队列里面
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+CELERY_QUEUES = {
+    "default_queue": {
+        "exchange": "default_queue",
+        "exchange_type": "direct",
+        "routing_key": "default_wj"
+    },
+    "topic_queue": {     # 这是一个topic队列 凡是topictest开头的routing key都会被放到这个队列
+        "routing_key": "topictest.#",   # 用来表示任意数量（零个或多个）单词
+        "exchange": "topic_exchange",
+        "exchange_type": "topic",
+    },
+    "fanout_queue_1": {  # 2个fanout队列,注意他们的exchange相同  扇型交换机
+        "exchange": "broadcast_tasks",
+        "exchange_type": "fanout",
+        "binding_key": "broadcast_tasks",
+    },
+    "fanout_queue_2": {
+        "exchange": "broadcast_tasks",
+        "exchange_type": "fanout",
+        "binding_key": "broadcast_tasks2",
+    },
+}
